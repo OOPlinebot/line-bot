@@ -1,4 +1,4 @@
-from main import *
+from method import *
 from linebot.models import *
 from urllib.parse import parse_qsl
 from linebot import LineBotApi
@@ -12,9 +12,13 @@ def handle_text_message(event):
     global user_message 
     user_message = str(event.message.text)
     if user_message.isdigit():  # 確認是否為數字格式的身分證號碼
-        user_exists = id_exist(int(user_message))  
-        if user_exists:
-            # 回傳按鈕樣板
+        user_exists = id_exist(user_message)  
+        if user_exists: # 確認user存在與否
+            messages = []
+            notify = notify_license_expiry(user_message)
+            if notify: # 提醒(駕照是否快到期)
+                messages.append(TextSendMessage(text=notify))
+
             buttons_template = TemplateSendMessage(
                 alt_text="Driver License Options",                
                 template=ButtonsTemplate(
@@ -28,7 +32,8 @@ def handle_text_message(event):
                     ]
                 )
             )
-            line_bot_api.reply_message(event.reply_token, buttons_template)
+            messages.append(buttons_template)
+            line_bot_api.reply_message(event.reply_token, messages)
         else:
             line_bot_api.reply_message(
                 event.reply_token,
@@ -52,28 +57,25 @@ def handle_postback_event(event):
 
 # 模擬回應 Postback 的函數（可自行擴展）
 def send_back_car(event, backdata):
-    user_records = get_user_by_id(list_users(), int(user_message))
-    car_records = [record for record in user_records if record.get('license_type') == 'Car']
-    if(car_records):
-        info = get_user_details_client_side(int(user_message))
+    car_record = get_car_details_client_(user_message)
+    if(car_record):
+        info = car_record
     else:
         info = "You don't have the car license"
     line_bot_api.reply_message(event.reply_token,TextSendMessage(text=info))
 
 def send_back_motorcycle(event, backdata):
-    user_records = get_user_by_id(list_users(), int(user_message))
-    motorcycle_records = [record for record in user_records if record.get('license_type') == 'Motorcycle']
-    if(motorcycle_records):
-        info = get_user_details_client_side(int(user_message))
+    motorcycle_record = get_moto_details_client_(user_message)
+    if(motorcycle_record):
+        info = motorcycle_record
     else:
         info = "You don't have the motorcycle license"
     line_bot_api.reply_message(event.reply_token,TextSendMessage(text=info))
 
 def send_back_endorsement(event, backdata):
-    violation = get_violation_by_id(list_violations(), int(user_message))
+    violation = get_violation_details_client_side(user_message)
     if(violation):
-        res = get_violation_details_client_side(int(user_message))
-        info = ''.join(res)
+        info = violation
     else:
         info = "You don't have any endorsements.\nKeep it up"
     line_bot_api.reply_message(event.reply_token,TextSendMessage(text=info))
